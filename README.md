@@ -1,62 +1,41 @@
 # Blue Jays Daily Badness Index
 
-A daily website that compares how **bad the Toronto Blue Jays** are relative to **every other MLB team**, lets anyone rate the emotional damage (1–10), and charts the community’s collective despair.
+Daily site that compares how **bad the Toronto Blue Jays** are to **every other MLB team**, lets you rate the pain (1–10), and charts the data.
 
-## Features
+## Live site (free)
 
-- **Daily comparisons** — deterministic, date-seeded roasts of the Jays vs all 29 other clubs
-- **Feeling ratings** — community 1–10 scale with nicknames and optional notes
-- **One vote per browser per day** (you can update it)
-- **Charts** — community average over time, today’s distribution, vote volume, all-time misery board
-- **Live feed** of today’s ratings
+**https://chadbergndsu.github.io/jays-badness/**
 
-## Run locally
+Anyone (Canada included) can open that link in a browser. No install, no account, no cost.
+
+- Same daily comparisons for everyone (based on the date)
+- Ratings & charts save **in that browser** on their device
+
+## Source
+
+Repo: https://github.com/chadbergndsu/jays-badness
+
+Static files live in `docs/` (served by GitHub Pages) and `public/`.
+
+## Run locally (optional)
+
+Just open `docs/index.html` in a browser, or:
 
 ```bash
-cd jays-badness
+cd docs && python3 -m http.server 8080
+```
+
+Then visit http://127.0.0.1:8080
+
+Optional Flask + SQLite server (for a shared database on one machine):
+
+```bash
 python3 -m pip install -r requirements.txt
 python3 server.py
 ```
 
-Open **http://127.0.0.1:5050**
-
-On first launch the app seeds ~30 days of sample ratings so the graphs aren’t empty. Data is stored in `data/ratings.db` (SQLite).
-
-### Re-seed sample data
-
-```bash
-rm -f data/ratings.db
-python3 seed.py
-python3 server.py
-```
-
-## Deploy live (Render — free)
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/chadbergndsu/jays-badness)
-
-Or manually:
-
-1. Go to [render.com](https://render.com) → **New** → **Blueprint** (or **Web Service**).
-2. Connect the `chadbergndsu/jays-badness` repository.
-3. Render uses `render.yaml` / the Procfile:
-   - **Build:** `pip install -r requirements.txt`
-   - **Start:** `gunicorn server:app --bind 0.0.0.0:$PORT --workers 1 --threads 4`
-4. Deploy — public URL like `https://jays-badness.onrender.com`.
-
-**Note:** Free-tier disks are ephemeral. SQLite ratings may reset when the free instance spins down. For durable storage later, add a paid disk or a hosted Postgres.
-
-## API
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/today` | Today’s official score, 29 comparisons, community stats |
-| GET | `/api/stats` | History, distribution, all-time stats |
-| POST | `/api/rate` | Submit/update a rating `{ rating, nickname, note, voter_key, date? }` |
-
 ## Stack
 
-- **Backend:** Python, Flask, SQLite, Gunicorn  
-- **Frontend:** HTML/CSS/JS, Chart.js  
+HTML, CSS, JavaScript, Chart.js — hosted free on **GitHub Pages**.
 
-Not affiliated with MLB or the Toronto Blue Jays. Pure vibes.
+Not affiliated with MLB or the Toronto Blue Jays.
