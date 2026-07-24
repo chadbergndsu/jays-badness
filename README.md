@@ -30,15 +30,18 @@ python3 seed.py
 python3 server.py
 ```
 
-## Deploy live (Render)
+## Deploy live (Render — free)
 
-1. Push this repo to GitHub (already done if you’re reading this on GitHub).
-2. Go to [render.com](https://render.com) → **New** → **Blueprint** (or **Web Service**).
-3. Connect this repository.
-4. Render will use `render.yaml` / the Procfile:
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/chadbergndsu/jays-badness)
+
+Or manually:
+
+1. Go to [render.com](https://render.com) → **New** → **Blueprint** (or **Web Service**).
+2. Connect the `chadbergndsu/jays-badness` repository.
+3. Render uses `render.yaml` / the Procfile:
    - **Build:** `pip install -r requirements.txt`
    - **Start:** `gunicorn server:app --bind 0.0.0.0:$PORT --workers 1 --threads 4`
-5. Deploy — you’ll get a public URL like `https://jays-badness.onrender.com`.
+4. Deploy — public URL like `https://jays-badness.onrender.com`.
 
 **Note:** Free-tier disks are ephemeral. SQLite ratings may reset when the free instance spins down. For durable storage later, add a paid disk or a hosted Postgres.
 
