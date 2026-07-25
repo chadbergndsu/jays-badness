@@ -85,24 +85,6 @@ const HEADLINES = [
   "Another day, another 29 teams looking relatively competent",
 ];
 
-const NICKNAMES = [
-  "Sad in Scarborough",
-  "Rogers Row F",
-  "Carlos the Pessimist",
-  "Vladdy Tears",
-  "Batter's Box Blues",
-  "North of Despair",
-  "7th Inning Stretch",
-  "Foul Pole Phil",
-  "Cito's Ghost",
-  "Dome Dweller",
-  "Ace of Spades?",
-  "Trade Deadline Ted",
-  "Walk-Off Waiter",
-  "Bullpen Prayers",
-  "Maple Leaf Adjacent",
-];
-
 /** Mulberry32 seeded PRNG */
 function mulberry32(a) {
   return function () {
@@ -122,15 +104,6 @@ async function hashSeed(str) {
 
 function todayIso() {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function addDays(iso, delta) {
-  const d = new Date(iso + "T12:00:00");
-  d.setDate(d.getDate() + delta);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -226,144 +199,5 @@ async function dailyPayload(day = todayIso()) {
       closest_matchup: { team: closest.team.short, gap: closest.gap },
     },
     mood_labels: MOOD_LABELS,
-  };
-}
-
-/* ---- local rating store (free, no server) ---- */
-
-const STORE_KEY = "jays-badness-ratings-v1";
-
-function loadStore() {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function saveStore(store) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
-}
-
-function ensureSeeded(store) {
-  if (store._seeded) return store;
-  const today = todayIso();
-  // Deterministic-ish seed so charts aren't empty on first visit
-  for (let offset = 30; offset >= 1; offset--) {
-    const day = addDays(today, -offset);
-    const n = 8 + ((offset * 7) % 18);
-    const ratings = [];
-    for (let i = 0; i < n; i++) {
-      // Cluster around a fake official score from day string
-      let h = 0;
-      for (let c = 0; c < day.length; c++) h = (h * 31 + day.charCodeAt(c)) >>> 0;
-      const base = 5.5 + (h % 40) / 10;
-      const rating = Math.max(1, Math.min(10, Math.round(base + ((i * 3) % 5) - 2)));
-      ratings.push({
-        rating,
-        nickname: NICKNAMES[(h + i) % NICKNAMES.length],
-        note: i % 5 === 0 ? "This is fine." : "",
-        created_at: new Date(day + "T18:00:00Z").toISOString(),
-        seed: true,
-      });
-    }
-    store[day] = ratings;
-  }
-  store._seeded = true;
-  saveStore(store);
-  return store;
-}
-
-function upsertLocalRating({ day, rating, nickname, note, voterKey }) {
-  const store = ensureSeeded(loadStore());
-  const list = store[day] || [];
-  const idx = list.findIndex((r) => r.voter_key === voterKey);
-  const row = {
-    rating,
-    nickname: nickname || "Anonymous",
-    note: note || "",
-    voter_key: voterKey,
-    created_at: new Date().toISOString(),
-    seed: false,
-  };
-  if (idx >= 0) list[idx] = row;
-  else list.push(row);
-  store[day] = list;
-  saveStore(store);
-  return row;
-}
-
-function dayStats(day) {
-  const store = ensureSeeded(loadStore());
-  const list = store[day] || [];
-  const ratings = list.map((r) => r.rating);
-  const distribution = {};
-  for (let i = 1; i <= 10; i++) distribution[String(i)] = 0;
-  for (const r of ratings) distribution[String(r)] += 1;
-  const avg =
-    ratings.length === 0
-      ? null
-      : Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) /
-        100;
-  const recent = [...list]
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-    .slice(0, 25)
-    .map(({ nickname, rating, note, created_at }) => ({
-      nickname,
-      rating,
-      note,
-      created_at,
-    }));
-  return { date: day, count: ratings.length, average: avg, distribution, recent };
-}
-
-function history(days = 90) {
-  const store = ensureSeeded(loadStore());
-  const keys = Object.keys(store)
-    .filter((k) => k !== "_seeded" && /^\d{4}-\d{2}-\d{2}$/.test(k))
-    .sort();
-  const slice = keys.slice(-days);
-  return slice.map((day) => {
-    const list = store[day] || [];
-    const ratings = list.map((r) => r.rating);
-    const average =
-      ratings.length === 0
-        ? null
-        : Math.round(
-            (ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100
-          ) / 100;
-    return {
-      day,
-      count: ratings.length,
-      average,
-      min_rating: ratings.length ? Math.min(...ratings) : null,
-      max_rating: ratings.length ? Math.max(...ratings) : null,
-    };
-  });
-}
-
-function allTimeStats() {
-  const store = ensureSeeded(loadStore());
-  let total = 0;
-  let sum = 0;
-  let worst = null;
-  let best = null;
-  for (const [day, list] of Object.entries(store)) {
-    if (day === "_seeded" || !Array.isArray(list) || !list.length) continue;
-    const ratings = list.map((r) => r.rating);
-    total += ratings.length;
-    sum += ratings.reduce((a, b) => a + b, 0);
-    const average =
-      Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) /
-      100;
-    const row = { day, average, count: ratings.length };
-    if (!worst || average > worst.average) worst = row;
-    if (!best || average < best.average) best = row;
-  }
-  return {
-    total_ratings: total,
-    overall_average: total ? Math.round((sum / total) * 100) / 100 : null,
-    worst_day: worst,
-    best_day: best,
   };
 }

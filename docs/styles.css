@@ -57,6 +57,39 @@ main,
   z-index: 1;
 }
 
+.firebase-status {
+  position: relative;
+  z-index: 2;
+  max-width: 1180px;
+  margin: 0.5rem auto 0;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.firebase-status.ok {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.firebase-status.err {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+@media (max-width: 1180px) {
+  .firebase-status {
+    margin-left: 1.5rem;
+    margin-right: 1.5rem;
+  }
+}
+
 .site-header {
   display: flex;
   align-items: center;

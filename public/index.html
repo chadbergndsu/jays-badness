@@ -9,12 +9,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="firebase-config.js" defer></script>
+  <script src="firebase-store.js" defer></script>
   <script src="engine.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
   <div class="bg-glow" aria-hidden="true"></div>
+  <div id="firebaseStatus" class="firebase-status" hidden></div>
 
   <header class="site-header">
     <div class="brand">
@@ -86,7 +91,7 @@
     <section class="section" id="rate">
       <div class="section-head">
         <h3>Rate today's pain</h3>
-        <p>How bad does it <em>feel</em>? Saved on this device (free, no login). One rating per day — update anytime.</p>
+        <p>How bad does it <em>feel</em>? Saved to the cloud so everyone sees it. One rating per browser per day — update anytime.</p>
       </div>
       <div class="card rate-card">
         <div class="slider-block">
@@ -208,7 +213,7 @@
       Pure vibes, deterministic daily roasts, and feeling ratings.
     </p>
     <p class="footer-note">
-      Free on GitHub Pages. Ratings are saved in <em>your</em> browser on this device.
+      Free on GitHub Pages. Ratings sync live via Firebase Firestore.
     </p>
   </footer>
 </body>

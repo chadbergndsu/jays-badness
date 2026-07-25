@@ -1,41 +1,88 @@
 # Blue Jays Daily Badness Index
 
-Daily site that compares how **bad the Toronto Blue Jays** are to **every other MLB team**, lets you rate the pain (1–10), and charts the data.
+Daily site that compares how **bad the Toronto Blue Jays** are to **every other MLB team**, lets anyone rate the pain (1–10), and charts the **shared** community data in **Firebase**.
 
-## Live site (free)
+## Live site
 
 **https://chadbergndsu.github.io/jays-badness/**
 
-Anyone (Canada included) can open that link in a browser. No install, no account, no cost.
+## Firebase setup (required for shared ratings)
 
-- Same daily comparisons for everyone (based on the date)
-- Ratings & charts save **in that browser** on their device
+### 1. Create Firestore
 
-## Source
+1. Open [Firebase Console](https://console.firebase.google.com/)
+2. Select your project
+3. **Build → Firestore Database → Create database**
+4. Start in **test mode** (or production — you’ll paste rules next)
+5. Pick any region → Enable
 
-Repo: https://github.com/chadbergndsu/jays-badness
+### 2. Publish security rules
 
-Static files live in `docs/` (served by GitHub Pages) and `public/`.
+1. Firestore → **Rules**
+2. Paste the contents of `firestore.rules` from this repo
+3. **Publish**
 
-## Run locally (optional)
+### 3. Register a Web app & copy config
 
-Just open `docs/index.html` in a browser, or:
+1. Project settings (gear) → **Your apps** → **Web** (`</>`)
+2. Nickname e.g. `jays-badness` → Register
+3. Copy the `firebaseConfig` object
 
-```bash
-cd docs && python3 -m http.server 8080
+### 4. Paste config into the site
+
+Edit **`docs/firebase-config.js`** (and `public/firebase-config.js` if you keep them in sync):
+
+```js
+const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123...",
+  appId: "1:123:web:abc..."
+};
 ```
 
-Then visit http://127.0.0.1:8080
-
-Optional Flask + SQLite server (for a shared database on one machine):
+### 5. Push to GitHub
 
 ```bash
-python3 -m pip install -r requirements.txt
-python3 server.py
+git add docs/firebase-config.js
+git commit -m "Add Firebase config"
+git push
 ```
+
+GitHub Pages will update in a minute or two. The banner should say **Live · ratings syncing via Firebase**.
+
+Then you and your guy in Canada both open the same link — his rating shows up on your charts (and vice versa).
+
+## What gets stored
+
+Collection: `ratings`
+
+| Field | Meaning |
+|--------|---------|
+| `day` | `YYYY-MM-DD` |
+| `rating` | 1–10 |
+| `nickname` | display name |
+| `note` | optional note |
+| `voter_key` | anonymous browser id |
+| `created_at` | server timestamp |
+
+Doc id: `{day}__{voter_key}` (one vote per browser per day; updates overwrite).
+
+## Local preview
+
+```bash
+cd docs
+python3 -m http.server 8080
+```
+
+Open http://127.0.0.1:8080
 
 ## Stack
 
-HTML, CSS, JavaScript, Chart.js — hosted free on **GitHub Pages**.
+- GitHub Pages (free hosting)
+- Firebase Firestore (shared cloud data, free spark tier)
+- Chart.js
 
 Not affiliated with MLB or the Toronto Blue Jays.

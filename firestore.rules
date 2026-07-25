@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public vibes board: anyone can read/write ratings.
+    // Safe enough for a friends joke site; tighten later if needed.
+    match /ratings/{docId} {
+      allow read: if true;
+      allow create, update: if
+        request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 10
+        && request.resource.data.day is string
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() <= 40
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 280
+        && request.resource.data.voter_key is string
+        && request.resource.data.voter_key.size() <= 80;
+      allow delete: if false;
+    }
+  }
+}

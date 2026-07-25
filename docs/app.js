@@ -1,4 +1,4 @@
-/* Blue Jays Daily Badness Index — static client (GitHub Pages) */
+/* Blue Jays Daily Badness Index — Firebase shared ratings */
 
 const FACES = ["😌", "😐", "😕", "😟", "😣", "😫", "😩", "🤯", "💀", "☠️"];
 
@@ -8,6 +8,8 @@ let state = {
   comparisons: [],
   filter: "all",
   charts: { history: null, dist: null, volume: null },
+  allRatings: [],
+  unsub: null,
 };
 
 function $(id) {
@@ -75,6 +77,14 @@ function updateSliderUI() {
     const on = i + 1 === val ? "1" : "0.35";
     return `<span style="opacity:${on};transform:scale(${i + 1 === val ? 1.25 : 1});display:inline-block">${f}</span>`;
   }).join("");
+}
+
+function setFirebaseBanner(msg, kind) {
+  const el = $("firebaseStatus");
+  if (!el) return;
+  el.hidden = !msg;
+  el.textContent = msg || "";
+  el.className = "firebase-status" + (kind ? ` ${kind}` : "");
 }
 
 function renderCommunity(community) {
@@ -345,15 +355,28 @@ function renderAllTime(allTime) {
   }
 }
 
-function renderStats() {
+function applyRatingsData(all) {
+  state.allRatings = all || [];
+  if (!state.day) return;
   chartDefaults();
-  const hist = history(90);
-  const today = dayStats(state.day);
+  const hist = computeHistory(state.allRatings, 90);
+  const today = computeDayStats(state.allRatings, state.day);
   renderHistoryChart(hist);
   renderVolumeChart(hist);
   renderDistChart(today.distribution || {});
-  renderAllTime(allTimeStats());
+  renderAllTime(computeAllTime(state.allRatings));
   renderCommunity(today);
+
+  // Prefill slider if this browser already voted today
+  const mine = state.allRatings.find(
+    (r) => r.day === state.day && r.voter_key === voterKey()
+  );
+  if (mine) {
+    $("ratingSlider").value = String(mine.rating);
+    if (mine.nickname) $("nickname").value = mine.nickname;
+    if (mine.note) $("note").value = mine.note;
+    updateSliderUI();
+  }
 }
 
 async function loadToday() {
@@ -390,17 +413,29 @@ async function loadToday() {
 
   updateSliderUI();
   renderComparisons();
-  renderStats();
 }
 
-function submitRating() {
+async function submitRating() {
   const status = $("formStatus");
+  const btn = $("submitRating");
   const rating = Number($("ratingSlider").value);
   const nickname = $("nickname").value.trim();
   const note = $("note").value.trim();
 
+  if (!firebaseReady) {
+    status.textContent =
+      firebaseError ||
+      "Firebase not connected. Paste your config into firebase-config.js";
+    status.className = "form-status err";
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = "Saving to the cloud…";
+  status.className = "form-status";
+
   try {
-    upsertLocalRating({
+    await upsertRating({
       day: state.day,
       rating,
       nickname,
@@ -411,12 +446,15 @@ function submitRating() {
     localStorage.setItem(`jays-rating-${state.day}`, String(rating));
     if (nickname) localStorage.setItem("jays-nickname", nickname);
 
-    status.textContent = `Logged: ${rating}/10 on this device. Charts updated.`;
+    status.textContent = `Saved: ${rating}/10 — everyone can see this now.`;
     status.className = "form-status ok";
-    renderStats();
+    // Live listener will refresh charts; force one fetch if needed
   } catch (err) {
-    status.textContent = err.message || "Something broke. Classic.";
+    console.error(err);
+    status.textContent = err.message || "Could not save. Check Firestore rules.";
     status.className = "form-status err";
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -433,11 +471,48 @@ function wireEvents() {
   });
 }
 
+function startLiveFeed() {
+  if (state.unsub) {
+    state.unsub();
+    state.unsub = null;
+  }
+  if (!firebaseReady) {
+    applyRatingsData([]);
+    return;
+  }
+  state.unsub = subscribeRatings(
+    (all) => {
+      setFirebaseBanner("Live · ratings syncing via Firebase", "ok");
+      applyRatingsData(all);
+    },
+    (err) => {
+      setFirebaseBanner(
+        `Firebase error: ${err.message || err}. Check Firestore is enabled and rules allow read/write.`,
+        "err"
+      );
+    }
+  );
+}
+
 async function boot() {
   wireEvents();
   updateSliderUI();
+  initFirebase();
+
+  if (!FIREBASE_CONFIGURED) {
+    setFirebaseBanner(
+      "Setup needed: paste your Firebase web config into firebase-config.js (see README).",
+      "err"
+    );
+  } else if (!firebaseReady) {
+    setFirebaseBanner(firebaseError || "Firebase failed to start.", "err");
+  } else {
+    setFirebaseBanner("Connecting to Firebase…", "");
+  }
+
   try {
     await loadToday();
+    startLiveFeed();
   } catch (err) {
     console.error(err);
     $("headline").textContent = "Could not load the badness index.";
