@@ -70,7 +70,47 @@ Collection: `ratings`
 
 Doc id: `{day}__{voter_key}` (one vote per browser per day; updates overwrite).
 
-## Local preview
+## Daily email to 3 people (free)
+
+GitHub Actions emails a daily digest every day at **13:00 UTC** (~9 AM Eastern).
+
+### 1. Create a Gmail App Password
+
+1. Use a Gmail account that will send the digests  
+2. Turn on [2-Step Verification](https://myaccount.google.com/security)  
+3. Create an [App Password](https://myaccount.google.com/apppasswords) → Mail  
+4. Copy the 16-character password  
+
+### 2. Add GitHub secrets
+
+Repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+
+| Secret | Example |
+|--------|---------|
+| `SMTP_USER` | `you@gmail.com` |
+| `SMTP_PASS` | Gmail app password (not your normal password) |
+| `EMAIL_FROM` | `you@gmail.com` (optional; defaults to SMTP_USER) |
+| `EMAIL_TO` | `friend1@email.com,friend2@email.com,you@email.com` |
+| `SMTP_HOST` | `smtp.gmail.com` (optional) |
+| `SMTP_PORT` | `587` (optional) |
+
+### 3. Test it
+
+1. Repo → **Actions** → **Daily Badness Email**  
+2. **Run workflow** → **Run workflow**  
+3. Check your inboxes  
+
+### Local test (preview only)
+
+```bash
+export DRY_RUN=1
+export SMTP_USER=you@gmail.com
+export SMTP_PASS=xxxx
+export EMAIL_TO=a@x.com,b@y.com,c@z.com
+python3 scripts/send_daily_email.py
+```
+
+## Local preview (website)
 
 ```bash
 cd docs
@@ -83,6 +123,7 @@ Open http://127.0.0.1:8080
 
 - GitHub Pages (free hosting)
 - Firebase Firestore (shared cloud data, free spark tier)
+- GitHub Actions (free daily emails)
 - Chart.js
 
 Not affiliated with MLB or the Toronto Blue Jays.
