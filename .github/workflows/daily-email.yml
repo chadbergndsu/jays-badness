@@ -1,1 +1,35 @@
-/Users/chadberg/jays-badness/.github/workflows/daily-email.yml
+name: Daily Badness Email
+
+on:
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Send daily email
+        env:
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "587"
+          SMTP_USER: chadbergndsu@gmail.com
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_FROM: chadbergndsu@gmail.com
+          EMAIL_TO: jarod.zimmer@railserve.com,Andre.obrien@railserve.com,kyle.pedretti@railserve.com,chad.berg@railserve.com
+          SITE_URL: https://chadbergndsu.github.io/jays-badness/
+          FIRESTORE_PROJECT: blue-jays-a16f1
+        run: |
+          if [ -z "$SMTP_PASS" ]; then
+            echo "Missing secret SMTP_PASS."
+            exit 1
+          fi
+          python scripts/send_daily_email.py
