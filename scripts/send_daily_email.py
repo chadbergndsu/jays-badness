@@ -223,12 +223,31 @@ DEFAULT_RECIPIENTS = (
 DEFAULT_FROM = "chadbergndsu@gmail.com"
 
 
+def _clean_secret(value: str) -> str:
+    """Strip copy-paste junk (NBSP, zero-width spaces, etc.) from secrets."""
+    if not value:
+        return ""
+    # Common when pasting Gmail app passwords from the browser
+    for ch in ("\xa0", "\u200b", "\u200c", "\u200d", "\ufeff"):
+        value = value.replace(ch, " ")
+    # Gmail app passwords are 16 letters; spaces are optional and ignored
+    return "".join(value.split())
+
+
 def send_email(subject: str, text_body: str, html_body: str) -> None:
-    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-    port = int(os.environ.get("SMTP_PORT", "587"))
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    port = int(os.environ.get("SMTP_PORT", "587").strip() or "587")
+    user = _clean_secret(os.environ.get("SMTP_USER", DEFAULT_FROM))
+    # Keep @ in email: only clean password fully; user is email
     user = os.environ.get("SMTP_USER", DEFAULT_FROM)
-    password = os.environ.get("SMTP_PASS", "")
+    for ch in ("\xa0", "\u200b", "\ufeff"):
+        user = user.replace(ch, "")
+    user = user.strip()
+    password = _clean_secret(os.environ.get("SMTP_PASS", ""))
     from_addr = os.environ.get("EMAIL_FROM", DEFAULT_FROM)
+    for ch in ("\xa0", "\u200b", "\ufeff"):
+        from_addr = from_addr.replace(ch, "")
+    from_addr = from_addr.strip() or user
     to_raw = os.environ.get("EMAIL_TO", DEFAULT_RECIPIENTS)
     recipients = [e.strip() for e in to_raw.replace(";", ",").split(",") if e.strip()]
     if not recipients:
@@ -241,6 +260,8 @@ def send_email(subject: str, text_body: str, html_body: str) -> None:
         raise SystemExit(
             "SMTP_PASS is required (Gmail App Password for chadbergndsu@gmail.com)"
         )
+    # Helpful debug without leaking the password
+    print(f"SMTP login as {user!r} (password length {len(password)}, ascii={password.isascii()})")
 
     dry = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
     if dry:
