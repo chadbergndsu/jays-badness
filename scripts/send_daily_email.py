@@ -214,16 +214,32 @@ def build_email(payload: dict, community: dict) -> tuple[str, str, str]:
     return subject, text_body, html_body
 
 
+DEFAULT_RECIPIENTS = (
+    "jarod.zimmer@railserve.com,"
+    "Andre.obrien@railserve.com,"
+    "kyle.pedretti@railserve.com"
+)
+DEFAULT_FROM = "chadbergndsu@gmail.com"
+
+
 def send_email(subject: str, text_body: str, html_body: str) -> None:
     host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     port = int(os.environ.get("SMTP_PORT", "587"))
-    user = os.environ["SMTP_USER"]
-    password = os.environ["SMTP_PASS"]
-    from_addr = os.environ.get("EMAIL_FROM", user)
-    to_raw = os.environ["EMAIL_TO"]
+    user = os.environ.get("SMTP_USER", DEFAULT_FROM)
+    password = os.environ.get("SMTP_PASS", "")
+    from_addr = os.environ.get("EMAIL_FROM", DEFAULT_FROM)
+    to_raw = os.environ.get("EMAIL_TO", DEFAULT_RECIPIENTS)
     recipients = [e.strip() for e in to_raw.replace(";", ",").split(",") if e.strip()]
     if not recipients:
-        raise SystemExit("EMAIL_TO is empty — add 3 emails as a comma-separated secret")
+        raise SystemExit("EMAIL_TO is empty")
+    if not password and os.environ.get("DRY_RUN", "").lower() not in (
+        "1",
+        "true",
+        "yes",
+    ):
+        raise SystemExit(
+            "SMTP_PASS is required (Gmail App Password for chadbergndsu@gmail.com)"
+        )
 
     dry = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
     if dry:

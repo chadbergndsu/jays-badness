@@ -74,39 +74,42 @@ Doc id: `{day}__{voter_key}` (one vote per browser per day; updates overwrite).
 
 GitHub Actions emails a daily digest every day at **13:00 UTC** (~9 AM Eastern).
 
-### 1. Create a Gmail App Password
+**From:** `chadbergndsu@gmail.com`  
+**To:**
+- jarod.zimmer@railserve.com  
+- Andre.obrien@railserve.com  
+- kyle.pedretti@railserve.com  
 
-1. Use a Gmail account that will send the digests  
+### 1. Create a Gmail App Password (one-time)
+
+1. Sign in as **chadbergndsu@gmail.com**  
 2. Turn on [2-Step Verification](https://myaccount.google.com/security)  
 3. Create an [App Password](https://myaccount.google.com/apppasswords) → Mail  
 4. Copy the 16-character password  
 
-### 2. Add GitHub secrets
+### 2. Add one GitHub secret
 
 Repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
-| Secret | Example |
-|--------|---------|
-| `SMTP_USER` | `you@gmail.com` |
-| `SMTP_PASS` | Gmail app password (not your normal password) |
-| `EMAIL_FROM` | `you@gmail.com` (optional; defaults to SMTP_USER) |
-| `EMAIL_TO` | `friend1@email.com,friend2@email.com,you@email.com` |
-| `SMTP_HOST` | `smtp.gmail.com` (optional) |
-| `SMTP_PORT` | `587` (optional) |
+| Secret | Value |
+|--------|--------|
+| `SMTP_PASS` | the Gmail App Password (not your normal Gmail password) |
 
-### 3. Test it
+### 3. Add the workflow file (if not already on GitHub)
+
+Create file: `.github/workflows/daily-email.yml`  
+Paste from your local copy in this repo (or see commit history / README setup).
+
+### 4. Test it
 
 1. Repo → **Actions** → **Daily Badness Email**  
 2. **Run workflow** → **Run workflow**  
-3. Check your inboxes  
+3. Check the three inboxes  
 
 ### Local test (preview only)
 
 ```bash
 export DRY_RUN=1
-export SMTP_USER=you@gmail.com
-export SMTP_PASS=xxxx
-export EMAIL_TO=a@x.com,b@y.com,c@z.com
 python3 scripts/send_daily_email.py
 ```
 
