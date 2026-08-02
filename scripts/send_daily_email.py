@@ -22,13 +22,15 @@ sys.path.insert(0, str(ROOT))
 from teams import daily_payload  # noqa: E402
 
 SITE_URL = os.environ.get(
-    "SITE_URL", "https://chadbergndsu.github.io/jays-badness/"
+    "SITE_URL", "https://chadbergndsu.github.io/jays-badness/?team=tor"
 )
 FIRESTORE_PROJECT = os.environ.get("FIRESTORE_PROJECT", "blue-jays-a16f1")
+# Daily email stays Blue Jays–focused unless overridden
+EMAIL_TEAM = os.environ.get("EMAIL_TEAM", "tor").lower()
 
 
-def fetch_community_stats(day: str) -> dict:
-    """Pull public ratings from Firestore REST (read-only)."""
+def fetch_community_stats(day: str, team_id: str = "tor") -> dict:
+    """Pull public ratings from Firestore REST (read-only), one team."""
     url = (
         f"https://firestore.googleapis.com/v1/projects/{FIRESTORE_PROJECT}"
         f"/databases/(default)/documents/ratings?pageSize=300"
@@ -45,6 +47,10 @@ def fetch_community_stats(day: str) -> dict:
         fields = doc.get("fields", {})
         d = (fields.get("day") or {}).get("stringValue")
         if d != day:
+            continue
+        # Legacy docs have no team field — treat as Blue Jays (tor)
+        team = (fields.get("team") or {}).get("stringValue") or "tor"
+        if team.lower() != team_id.lower():
             continue
         rating = (fields.get("rating") or {}).get("integerValue")
         if rating is None:
@@ -296,8 +302,8 @@ def send_email(subject: str, text_body: str, html_body: str) -> None:
 
 
 def main() -> None:
-    payload = daily_payload()
-    community = fetch_community_stats(payload["date"])
+    payload = daily_payload(focus_id=EMAIL_TEAM)
+    community = fetch_community_stats(payload["date"], team_id=EMAIL_TEAM)
     subject, text_body, html_body = build_email(payload, community)
     print(f"Built email for {payload['date']} — score {payload['official_badness']}")
     send_email(subject, text_body, html_body)

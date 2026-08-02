@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blue Jays Daily Badness Index</title>
-  <meta name="description" content="Every day we compare how bad the Toronto Blue Jays are to every other MLB team. Rate the pain. Chart the despair." />
+  <title>MLB Daily Badness Index</title>
+  <meta name="description" content="Every day we compare how bad each MLB team is to every other team. Rate the pain. Chart the despair." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -21,200 +21,245 @@
   <div class="bg-glow" aria-hidden="true"></div>
   <div id="firebaseStatus" class="firebase-status" hidden></div>
 
-  <header class="site-header">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">🐦</span>
-      <div>
-        <p class="brand-kicker">Toronto Blue Jays</p>
-        <h1>Daily Badness Index</h1>
+  <!-- ========== HUB: pick a team ========== -->
+  <div id="hubView">
+    <header class="site-header hub-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">⚾</span>
+        <div>
+          <p class="brand-kicker">All 30 MLB teams</p>
+          <h1>Daily Badness Index</h1>
+        </div>
       </div>
-    </div>
-    <nav class="nav">
-      <a href="#rate">Rate</a>
-      <a href="#compare">Compare</a>
-      <a href="#charts">Charts</a>
-      <a href="#feed">Feed</a>
-    </nav>
-    <div class="header-date" id="headerDate">—</div>
-  </header>
+      <div class="header-date" id="hubDate">—</div>
+    </header>
 
-  <main>
-    <!-- Hero -->
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow" id="headline">Loading today's verdict…</p>
-        <h2>
-          How bad are the
-          <span class="accent">Blue Jays</span>
-          today?
-        </h2>
+    <main class="hub-main">
+      <section class="hub-hero">
+        <h2>Whose misery are we measuring today?</h2>
         <p class="lead">
-          Every day we stack Toronto against all <strong>29 other MLB teams</strong>
-          and let the internet rate the emotional damage. Feelings only — no sabermetrics required.
+          Pick a team. Every day we stack them against the other <strong>29 MLB clubs</strong>,
+          roast the vibes, and let fans rate the emotional damage (1–10). Shared live charts for each club.
         </p>
-        <div class="hero-stats">
-          <div class="stat-pill">
-            <span class="stat-label">Official index</span>
-            <span class="stat-value" id="officialScore">—</span>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-label">Mood</span>
-            <span class="stat-value stat-mood" id="moodLabel">—</span>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-label">Community avg</span>
-            <span class="stat-value" id="communityAvg">—</span>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-label">Votes today</span>
-            <span class="stat-value" id="votesToday">0</span>
-          </div>
-        </div>
-      </div>
-      <div class="hero-meter card">
-        <div class="meter-ring" id="meterRing">
-          <svg viewBox="0 0 120 120" aria-hidden="true">
-            <circle class="ring-bg" cx="60" cy="60" r="52" />
-            <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52" />
-          </svg>
-          <div class="meter-center">
-            <span class="meter-score" id="meterScore">—</span>
-            <span class="meter-of">/ 10</span>
-          </div>
-        </div>
-        <p class="meter-caption">Today's official badness (algorithmic doom score)</p>
-        <ul class="meter-summary" id="meterSummary"></ul>
-      </div>
-    </section>
+      </section>
 
-    <!-- Rate -->
-    <section class="section" id="rate">
-      <div class="section-head">
-        <h3>Rate today's pain</h3>
-        <p>How bad does it <em>feel</em>? Saved to the cloud so everyone sees it. One rating per browser per day — update anytime.</p>
+      <div class="hub-filters">
+        <button type="button" class="chip active" data-hub-filter="all">All 30</button>
+        <button type="button" class="chip" data-hub-filter="AL">AL</button>
+        <button type="button" class="chip" data-hub-filter="NL">NL</button>
+        <button type="button" class="chip" data-hub-filter="East">East</button>
+        <button type="button" class="chip" data-hub-filter="Central">Central</button>
+        <button type="button" class="chip" data-hub-filter="West">West</button>
       </div>
-      <div class="card rate-card">
-        <div class="slider-block">
-          <div class="slider-labels">
-            <span>1 · Actually fine?</span>
-            <span id="liveRatingLabel">5 · Moderately cooked</span>
-            <span>10 · Existential collapse</span>
-          </div>
-          <input
-            type="range"
-            id="ratingSlider"
-            min="1"
-            max="10"
-            step="1"
-            value="5"
-            aria-label="Badness rating from 1 to 10"
-          />
-          <div class="rating-faces" id="ratingFaces" aria-hidden="true"></div>
-        </div>
-        <div class="rate-form">
-          <label>
-            Nickname
-            <input type="text" id="nickname" maxlength="40" placeholder="Sad in Scarborough" />
-          </label>
-          <label class="grow">
-            Optional note
-            <input type="text" id="note" maxlength="280" placeholder="My therapist knows the rotation…" />
-          </label>
-          <button type="button" class="btn btn-primary" id="submitRating">
-            Submit feeling
-          </button>
-        </div>
-        <p class="form-status" id="formStatus" role="status"></p>
-      </div>
-    </section>
 
-    <!-- Compare -->
-    <section class="section" id="compare">
-      <div class="section-head">
-        <h3>Blue Jays vs every other MLB team</h3>
-        <p>Fresh comparisons every day. Sorted by how much worse Toronto looks.</p>
-      </div>
-      <div class="filters">
-        <button type="button" class="chip active" data-filter="all">All 29</button>
-        <button type="button" class="chip" data-filter="AL">AL only</button>
-        <button type="button" class="chip" data-filter="NL">NL only</button>
-        <button type="button" class="chip" data-filter="East">East</button>
-        <button type="button" class="chip" data-filter="Central">Central</button>
-        <button type="button" class="chip" data-filter="West">West</button>
-      </div>
-      <div class="compare-grid" id="compareGrid"></div>
-    </section>
+      <div class="team-picker" id="teamPicker"></div>
+    </main>
 
-    <!-- Charts -->
-    <section class="section" id="charts">
-      <div class="section-head">
-        <h3>Graphs from the collective despair</h3>
-        <p>Built from every rating submitted on this site.</p>
+    <footer class="site-footer">
+      <p>Not affiliated with MLB or any team. Pure vibes, deterministic daily roasts, and feeling ratings.</p>
+      <p class="footer-note">Free on GitHub Pages. Ratings sync live via Firebase Firestore.</p>
+    </footer>
+  </div>
+
+  <!-- ========== TEAM PAGE ========== -->
+  <div id="teamView" hidden>
+    <header class="site-header">
+      <div class="brand">
+        <a href="./" class="brand-mark brand-link" id="brandMark" aria-label="Back to all teams">🐦</a>
+        <div>
+          <p class="brand-kicker" id="brandKicker">Toronto Blue Jays</p>
+          <h1>Daily Badness Index</h1>
+        </div>
       </div>
-      <div class="charts-grid">
-        <div class="card chart-card">
-          <h4>Community average over time</h4>
-          <p class="chart-sub">Daily mean badness (1–10). Higher = more pain.</p>
-          <div class="chart-wrap">
-            <canvas id="historyChart"></canvas>
-          </div>
-        </div>
-        <div class="card chart-card">
-          <h4>Today's rating distribution</h4>
-          <p class="chart-sub">How many people landed on each number.</p>
-          <div class="chart-wrap">
-            <canvas id="distChart"></canvas>
-          </div>
-        </div>
-        <div class="card chart-card">
-          <h4>Vote volume by day</h4>
-          <p class="chart-sub">How many fans showed up to suffer publicly.</p>
-          <div class="chart-wrap">
-            <canvas id="volumeChart"></canvas>
-          </div>
-        </div>
-        <div class="card chart-card all-time">
-          <h4>All-time misery board</h4>
-          <div class="all-time-stats" id="allTimeStats">
-            <div class="at-item">
-              <span class="at-label">Total ratings</span>
-              <span class="at-value" id="atTotal">—</span>
+      <nav class="nav">
+        <a href="#rate">Rate</a>
+        <a href="#compare">Compare</a>
+        <a href="#charts">Charts</a>
+        <a href="#feed">Feed</a>
+        <a href="./" class="nav-hub">All teams</a>
+      </nav>
+      <div class="header-date" id="headerDate">—</div>
+    </header>
+
+    <div class="team-switcher-bar">
+      <label for="teamSelect">Switch team</label>
+      <select id="teamSelect" aria-label="Switch MLB team"></select>
+    </div>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow" id="headline">Loading today's verdict…</p>
+          <h2>
+            How bad are the
+            <span class="accent" id="heroTeamName">Blue Jays</span>
+            today?
+          </h2>
+          <p class="lead" id="heroLead">
+            Every day we stack them against all <strong>29 other MLB teams</strong>
+            and let the internet rate the emotional damage. Feelings only — no sabermetrics required.
+          </p>
+          <div class="hero-stats">
+            <div class="stat-pill">
+              <span class="stat-label">Official index</span>
+              <span class="stat-value" id="officialScore">—</span>
             </div>
-            <div class="at-item">
-              <span class="at-label">Overall average</span>
-              <span class="at-value" id="atAvg">—</span>
+            <div class="stat-pill">
+              <span class="stat-label">Mood</span>
+              <span class="stat-value stat-mood" id="moodLabel">—</span>
             </div>
-            <div class="at-item">
-              <span class="at-label">Worst day</span>
-              <span class="at-value" id="atWorst">—</span>
+            <div class="stat-pill">
+              <span class="stat-label">Community avg</span>
+              <span class="stat-value" id="communityAvg">—</span>
             </div>
-            <div class="at-item">
-              <span class="at-label">Least bad day</span>
-              <span class="at-value" id="atBest">—</span>
+            <div class="stat-pill">
+              <span class="stat-label">Votes today</span>
+              <span class="stat-value" id="votesToday">0</span>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+        <div class="hero-meter card">
+          <div class="meter-ring" id="meterRing">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="ring-bg" cx="60" cy="60" r="52" />
+              <circle class="ring-fg" id="ringFg" cx="60" cy="60" r="52" />
+            </svg>
+            <div class="meter-center">
+              <span class="meter-score" id="meterScore">—</span>
+              <span class="meter-of">/ 10</span>
+            </div>
+          </div>
+          <p class="meter-caption">Today's official badness (algorithmic doom score)</p>
+          <ul class="meter-summary" id="meterSummary"></ul>
+        </div>
+      </section>
 
-    <!-- Feed -->
-    <section class="section" id="feed">
-      <div class="section-head">
-        <h3>Today's feeling feed</h3>
-        <p>Latest ratings from the stands (and the couch).</p>
-      </div>
-      <div class="feed" id="feedList"></div>
-    </section>
-  </main>
+      <section class="section" id="rate">
+        <div class="section-head">
+          <h3>Rate today's pain</h3>
+          <p>How bad does it <em>feel</em>? Saved to the cloud so everyone sees it. One rating per browser per team per day — update anytime.</p>
+        </div>
+        <div class="card rate-card">
+          <div class="slider-block">
+            <div class="slider-labels">
+              <span>1 · Actually fine?</span>
+              <span id="liveRatingLabel">5 · Moderately cooked</span>
+              <span>10 · Existential collapse</span>
+            </div>
+            <input
+              type="range"
+              id="ratingSlider"
+              min="1"
+              max="10"
+              step="1"
+              value="5"
+              aria-label="Badness rating from 1 to 10"
+            />
+            <div class="rating-faces" id="ratingFaces" aria-hidden="true"></div>
+          </div>
+          <div class="rate-form">
+            <label>
+              Nickname
+              <input type="text" id="nickname" maxlength="40" placeholder="Sad in the stands" />
+            </label>
+            <label class="grow">
+              Optional note
+              <input type="text" id="note" maxlength="280" placeholder="My therapist knows the rotation…" />
+            </label>
+            <button type="button" class="btn btn-primary" id="submitRating">
+              Submit feeling
+            </button>
+          </div>
+          <p class="form-status" id="formStatus" role="status"></p>
+        </div>
+      </section>
 
-  <footer class="site-footer">
-    <p>
-      Not affiliated with MLB or the Toronto Blue Jays.
-      Pure vibes, deterministic daily roasts, and feeling ratings.
-    </p>
-    <p class="footer-note">
-      Free on GitHub Pages. Ratings sync live via Firebase Firestore.
-    </p>
-  </footer>
+      <section class="section" id="compare">
+        <div class="section-head">
+          <h3 id="compareTitle">vs every other MLB team</h3>
+          <p id="compareSub">Fresh comparisons every day. Sorted by how much worse they look.</p>
+        </div>
+        <div class="filters">
+          <button type="button" class="chip active" data-filter="all">All 29</button>
+          <button type="button" class="chip" data-filter="AL">AL only</button>
+          <button type="button" class="chip" data-filter="NL">NL only</button>
+          <button type="button" class="chip" data-filter="East">East</button>
+          <button type="button" class="chip" data-filter="Central">Central</button>
+          <button type="button" class="chip" data-filter="West">West</button>
+        </div>
+        <div class="compare-grid" id="compareGrid"></div>
+      </section>
+
+      <section class="section" id="charts">
+        <div class="section-head">
+          <h3>Graphs from the collective despair</h3>
+          <p>Built from every rating submitted for this team on this site.</p>
+        </div>
+        <div class="charts-grid">
+          <div class="card chart-card">
+            <h4>Community average over time</h4>
+            <p class="chart-sub">Daily mean badness (1–10). Higher = more pain.</p>
+            <div class="chart-wrap">
+              <canvas id="historyChart"></canvas>
+            </div>
+          </div>
+          <div class="card chart-card">
+            <h4>Today's rating distribution</h4>
+            <p class="chart-sub">How many people landed on each number.</p>
+            <div class="chart-wrap">
+              <canvas id="distChart"></canvas>
+            </div>
+          </div>
+          <div class="card chart-card">
+            <h4>Vote volume by day</h4>
+            <p class="chart-sub">How many fans showed up to suffer publicly.</p>
+            <div class="chart-wrap">
+              <canvas id="volumeChart"></canvas>
+            </div>
+          </div>
+          <div class="card chart-card all-time">
+            <h4>All-time misery board</h4>
+            <div class="all-time-stats" id="allTimeStats">
+              <div class="at-item">
+                <span class="at-label">Total ratings</span>
+                <span class="at-value" id="atTotal">—</span>
+              </div>
+              <div class="at-item">
+                <span class="at-label">Overall average</span>
+                <span class="at-value" id="atAvg">—</span>
+              </div>
+              <div class="at-item">
+                <span class="at-label">Worst day</span>
+                <span class="at-value" id="atWorst">—</span>
+              </div>
+              <div class="at-item">
+                <span class="at-label">Least bad day</span>
+                <span class="at-value" id="atBest">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="feed">
+        <div class="section-head">
+          <h3>Today's feeling feed</h3>
+          <p>Latest ratings from the stands (and the couch) for this team.</p>
+        </div>
+        <div class="feed" id="feedList"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p id="footerTeamNote">
+        Not affiliated with MLB or any team.
+        Pure vibes, deterministic daily roasts, and feeling ratings.
+      </p>
+      <p class="footer-note">
+        Free on GitHub Pages. Ratings sync live via Firebase Firestore.
+        <a href="./">← All teams</a>
+      </p>
+    </footer>
+  </div>
 </body>
 </html>

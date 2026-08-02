@@ -1,15 +1,20 @@
-/* Blue Jays Daily Badness Index — Firebase shared ratings */
+/* MLB Daily Badness Index — multi-team + Firebase shared ratings */
 
 const FACES = ["😌", "😐", "😕", "😟", "😣", "😫", "😩", "🤯", "💀", "☠️"];
 
 let state = {
+  view: "hub", // "hub" | "team"
+  teamId: null,
+  focus: null,
   day: null,
-  moodLabels: MOOD_LABELS,
+  moodLabels: null,
   comparisons: [],
   filter: "all",
+  hubFilter: "all",
   charts: { history: null, dist: null, volume: null },
   allRatings: [],
   unsub: null,
+  eventsWired: false,
 };
 
 function $(id) {
@@ -54,14 +59,60 @@ function shortDay(iso) {
 function scoreColor(score) {
   if (score >= 8) return "#e31937";
   if (score >= 6) return "#d97706";
-  if (score >= 4) return "#134a8e";
+  if (score >= 4) return state.focus?.color || "#134a8e";
   return "#0f766e";
+}
+
+function hexToRgb(hex) {
+  const h = (hex || "#134A8E").replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function applyTeamTheme(focus) {
+  const root = document.documentElement;
+  const primary = focus.color || "#134A8E";
+  const accent = focus.accent || "#E31937";
+  const { r, g, b } = hexToRgb(primary);
+  root.style.setProperty("--navy", shadeHex(primary, -35));
+  root.style.setProperty("--navy-2", primary);
+  root.style.setProperty("--navy-3", shadeHex(primary, 20));
+  root.style.setProperty("--red", accent);
+  root.style.setProperty("--red-soft", shadeHex(accent, 25));
+  root.style.setProperty("--team-primary", primary);
+  root.style.setProperty("--team-accent", accent);
+  root.style.setProperty(
+    "--team-glow",
+    `rgba(${r}, ${g}, ${b}, 0.28)`
+  );
+}
+
+function shadeHex(hex, amount) {
+  const { r, g, b } = hexToRgb(hex);
+  const clamp = (v) => Math.max(0, Math.min(255, v + amount));
+  const to = (v) => clamp(v).toString(16).padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+function parseRoute() {
+  const params = new URLSearchParams(window.location.search);
+  let team = (params.get("team") || "").toLowerCase().trim();
+  if (!team && window.location.hash) {
+    const h = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+    if (TEAMS_BY_ID[h]) team = h;
+  }
+  if (team && TEAMS_BY_ID[team]) {
+    return { view: "team", teamId: team };
+  }
+  return { view: "hub", teamId: null };
 }
 
 function setMeter(score) {
   const circ = 2 * Math.PI * 52;
   const pct = Math.min(10, Math.max(0, score)) / 10;
   const fg = $("ringFg");
+  if (!fg) return;
   fg.style.strokeDasharray = String(circ);
   fg.style.strokeDashoffset = String(circ * (1 - pct));
   fg.style.stroke = scoreColor(score);
@@ -70,8 +121,10 @@ function setMeter(score) {
 }
 
 function updateSliderUI() {
-  const val = Number($("ratingSlider").value);
-  const labels = state.moodLabels || MOOD_LABELS;
+  const slider = $("ratingSlider");
+  if (!slider) return;
+  const val = Number(slider.value);
+  const labels = state.moodLabels || moodLabelsFor(state.focus || BLUE_JAYS);
   $("liveRatingLabel").textContent = `${val} · ${labels[val] || ""}`;
   $("ratingFaces").innerHTML = FACES.map((f, i) => {
     const on = i + 1 === val ? "1" : "0.35";
@@ -87,6 +140,99 @@ function setFirebaseBanner(msg, kind) {
   el.className = "firebase-status" + (kind ? ` ${kind}` : "");
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* ---------- Hub ---------- */
+
+function renderHub() {
+  $("hubView").hidden = false;
+  $("teamView").hidden = true;
+  document.body.classList.remove("team-mode");
+  document.body.classList.add("hub-mode");
+  document.title = "MLB Daily Badness Index";
+  applyTeamTheme({ color: "#134A8E", accent: "#E31937" });
+
+  $("hubDate").textContent = formatDay(todayIso());
+
+  const f = state.hubFilter;
+  const list = ALL_TEAMS.filter((t) => {
+    if (f === "all") return true;
+    if (f === "AL" || f === "NL") return t.league === f;
+    return t.division === f;
+  });
+
+  // Group by league/division for nicer layout
+  const groups = [
+    { key: "AL East", match: (t) => t.league === "AL" && t.division === "East" },
+    { key: "AL Central", match: (t) => t.league === "AL" && t.division === "Central" },
+    { key: "AL West", match: (t) => t.league === "AL" && t.division === "West" },
+    { key: "NL East", match: (t) => t.league === "NL" && t.division === "East" },
+    { key: "NL Central", match: (t) => t.league === "NL" && t.division === "Central" },
+    { key: "NL West", match: (t) => t.league === "NL" && t.division === "West" },
+  ];
+
+  const picker = $("teamPicker");
+  picker.innerHTML = groups
+    .map((g) => {
+      const teams = list.filter(g.match);
+      if (!teams.length) return "";
+      return `
+        <section class="hub-division">
+          <h3>${escapeHtml(g.key)}</h3>
+          <div class="hub-grid">
+            ${teams
+              .map(
+                (t) => `
+              <button type="button" class="team-tile" data-team="${escapeHtml(t.id)}" style="--tile-color:${escapeHtml(t.color)};--tile-accent:${escapeHtml(t.accent)}">
+                <span class="tile-emoji" aria-hidden="true">${t.emoji}</span>
+                <span class="tile-abbr">${escapeHtml(t.abbr)}</span>
+                <span class="tile-name">${escapeHtml(t.short)}</span>
+                <span class="tile-city">${escapeHtml(t.city)}</span>
+              </button>`
+              )
+              .join("")}
+          </div>
+        </section>`;
+    })
+    .join("");
+
+  picker.querySelectorAll(".team-tile").forEach((btn) => {
+    btn.addEventListener("click", () => navigateToTeam(btn.dataset.team));
+  });
+}
+
+/* ---------- Team page ---------- */
+
+function fillTeamSelect() {
+  const sel = $("teamSelect");
+  if (!sel || sel.options.length) return;
+  const byDiv = [
+    ["AL East", (t) => t.league === "AL" && t.division === "East"],
+    ["AL Central", (t) => t.league === "AL" && t.division === "Central"],
+    ["AL West", (t) => t.league === "AL" && t.division === "West"],
+    ["NL East", (t) => t.league === "NL" && t.division === "East"],
+    ["NL Central", (t) => t.league === "NL" && t.division === "Central"],
+    ["NL West", (t) => t.league === "NL" && t.division === "West"],
+  ];
+  for (const [label, match] of byDiv) {
+    const og = document.createElement("optgroup");
+    og.label = label;
+    ALL_TEAMS.filter(match).forEach((t) => {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = `${t.abbr} — ${t.name}`;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  }
+}
+
 function renderCommunity(community) {
   if (!community) return;
   $("votesToday").textContent = String(community.count ?? 0);
@@ -97,19 +243,19 @@ function renderCommunity(community) {
 
 function renderFeed(recent) {
   const el = $("feedList");
+  if (!el) return;
   if (!recent.length) {
     el.innerHTML =
       '<div class="feed-empty">No ratings yet today. Be the first to suffer out loud.</div>';
     return;
   }
+  const labels = state.moodLabels || {};
   el.innerHTML = recent
     .map((r) => {
       const high = r.rating >= 8 ? " high" : "";
       const note = r.note
         ? `<p class="feed-note">${escapeHtml(r.note)}</p>`
-        : `<p class="feed-note">${escapeHtml(
-            (state.moodLabels || MOOD_LABELS)[r.rating] || ""
-          )}</p>`;
+        : `<p class="feed-note">${escapeHtml(labels[r.rating] || "")}</p>`;
       const t = r.created_at
         ? new Date(r.created_at).toLocaleTimeString(undefined, {
             hour: "numeric",
@@ -129,17 +275,11 @@ function renderFeed(recent) {
     .join("");
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function renderComparisons() {
   const grid = $("compareGrid");
+  if (!grid) return;
   const f = state.filter;
+  const focus = state.focus;
   const list = state.comparisons.filter((c) => {
     const t = c.team;
     if (f === "all") return true;
@@ -147,10 +287,14 @@ function renderComparisons() {
     return t.division === f;
   });
 
+  const focusAbbr = focus?.abbr || "???";
+  const focusScoreKey = (c) => c.focus_badness ?? c.jays_badness;
+
   grid.innerHTML = list
     .map((c) => {
       const t = c.team;
-      const jPct = Math.min(100, (c.jays_badness / 10) * 100);
+      const fb = focusScoreKey(c);
+      const jPct = Math.min(100, (fb / 10) * 100);
       const tPct = Math.min(100, (c.their_badness / 10) * 100);
       return `
         <article class="card compare-card" style="--team-color:${t.color}">
@@ -166,9 +310,9 @@ function renderComparisons() {
           <span class="verdict">${escapeHtml(c.verdict)}</span>
           <div class="bars">
             <div class="bar-row">
-              <span>Jays</span>
+              <span>${escapeHtml(focusAbbr)}</span>
               <div class="bar-track"><div class="bar-fill" style="width:${jPct}%"></div></div>
-              <span class="bar-val">${c.jays_badness}</span>
+              <span class="bar-val">${fb}</span>
             </div>
             <div class="bar-row">
               <span>${escapeHtml(t.abbr)}</span>
@@ -205,9 +349,22 @@ function destroyChart(key) {
   }
 }
 
+function destroyAllCharts() {
+  destroyChart("history");
+  destroyChart("dist");
+  destroyChart("volume");
+}
+
+function themeColors() {
+  const primary = state.focus?.color || "#134a8e";
+  const accent = state.focus?.accent || "#e31937";
+  return { primary, accent };
+}
+
 function renderHistoryChart(hist) {
   destroyChart("history");
-  if (typeof Chart === "undefined") return;
+  if (typeof Chart === "undefined" || !$("historyChart")) return;
+  const { primary, accent } = themeColors();
   const labels = hist.map((h) => shortDay(h.day));
   const avgs = hist.map((h) => h.average);
   state.charts.history = new Chart($("historyChart"), {
@@ -218,12 +375,12 @@ function renderHistoryChart(hist) {
         {
           label: "Avg badness",
           data: avgs,
-          borderColor: "#e31937",
-          backgroundColor: "rgba(227, 25, 55, 0.12)",
+          borderColor: accent,
+          backgroundColor: accent + "1f",
           fill: true,
           tension: 0.35,
           pointRadius: 3,
-          pointBackgroundColor: "#134a8e",
+          pointBackgroundColor: primary,
           borderWidth: 2.5,
         },
       ],
@@ -260,7 +417,7 @@ function renderHistoryChart(hist) {
 
 function renderDistChart(distribution) {
   destroyChart("dist");
-  if (typeof Chart === "undefined") return;
+  if (typeof Chart === "undefined" || !$("distChart")) return;
   const labels = Object.keys(distribution);
   const values = labels.map((k) => distribution[k]);
   const colors = labels.map((k) => scoreColor(Number(k)));
@@ -300,7 +457,8 @@ function renderDistChart(distribution) {
 
 function renderVolumeChart(hist) {
   destroyChart("volume");
-  if (typeof Chart === "undefined") return;
+  if (typeof Chart === "undefined" || !$("volumeChart")) return;
+  const { primary } = themeColors();
   state.charts.volume = new Chart($("volumeChart"), {
     type: "bar",
     data: {
@@ -309,7 +467,7 @@ function renderVolumeChart(hist) {
         {
           label: "Votes",
           data: hist.map((h) => h.count),
-          backgroundColor: "rgba(19, 74, 142, 0.75)",
+          backgroundColor: primary + "bf",
           borderRadius: 6,
         },
       ],
@@ -357,7 +515,7 @@ function renderAllTime(allTime) {
 
 function applyRatingsData(all) {
   state.allRatings = all || [];
-  if (!state.day) return;
+  if (!state.day || state.view !== "team") return;
   chartDefaults();
   const hist = computeHistory(state.allRatings, 90);
   const today = computeDayStats(state.allRatings, state.day);
@@ -367,7 +525,6 @@ function applyRatingsData(all) {
   renderAllTime(computeAllTime(state.allRatings));
   renderCommunity(today);
 
-  // Prefill slider if this browser already voted today
   const mine = state.allRatings.find(
     (r) => r.day === state.day && r.voter_key === voterKey()
   );
@@ -379,10 +536,39 @@ function applyRatingsData(all) {
   }
 }
 
-async function loadToday() {
-  const data = await dailyPayload(todayIso());
+async function loadTeamPage(teamId) {
+  const focus = getFocusTeam(teamId);
+  state.teamId = focus.id;
+  state.focus = focus;
+  state.filter = "all";
+  document.querySelectorAll("#teamView .chip[data-filter]").forEach((c) => {
+    c.classList.toggle("active", c.dataset.filter === "all");
+  });
+
+  $("hubView").hidden = true;
+  $("teamView").hidden = false;
+  document.body.classList.add("team-mode");
+  document.body.classList.remove("hub-mode");
+  applyTeamTheme(focus);
+
+  document.title = `${focus.short} Daily Badness Index`;
+  $("brandMark").textContent = focus.emoji;
+  $("brandKicker").textContent = focus.name;
+  $("heroTeamName").textContent = focus.short;
+  $("heroLead").innerHTML = `Every day we stack <strong>${escapeHtml(
+    focus.city
+  )}</strong> against all <strong>29 other MLB teams</strong> and let the internet rate the emotional damage. Feelings only — no sabermetrics required.`;
+  $("compareTitle").textContent = `${focus.short} vs every other MLB team`;
+  $("compareSub").textContent = `Fresh comparisons every day. Sorted by how much worse ${focus.city} looks.`;
+  $("footerTeamNote").textContent = `Not affiliated with MLB or the ${focus.name}. Pure vibes, deterministic daily roasts, and feeling ratings.`;
+  $("nickname").placeholder = `Sad in ${focus.city}`;
+
+  fillTeamSelect();
+  $("teamSelect").value = focus.id;
+
+  const data = await dailyPayload(todayIso(), focus.id);
   state.day = data.date;
-  state.moodLabels = data.mood_labels || MOOD_LABELS;
+  state.moodLabels = data.mood_labels;
   state.comparisons = data.comparisons || [];
 
   $("headerDate").textContent = formatDay(data.date);
@@ -402,7 +588,7 @@ async function loadToday() {
     )}</strong> (+${s.closest_matchup?.gap ?? "—"})</li>
   `;
 
-  const saved = localStorage.getItem(`jays-rating-${data.date}`);
+  const saved = localStorage.getItem(`badness-rating-${focus.id}-${data.date}`);
   if (saved) {
     $("ratingSlider").value = saved;
   } else {
@@ -413,6 +599,7 @@ async function loadToday() {
 
   updateSliderUI();
   renderComparisons();
+  startLiveFeed();
 }
 
 async function submitRating() {
@@ -436,6 +623,7 @@ async function submitRating() {
 
   try {
     await upsertRating({
+      teamId: state.teamId,
       day: state.day,
       rating,
       nickname,
@@ -443,12 +631,14 @@ async function submitRating() {
       voterKey: voterKey(),
     });
 
-    localStorage.setItem(`jays-rating-${state.day}`, String(rating));
+    localStorage.setItem(
+      `badness-rating-${state.teamId}-${state.day}`,
+      String(rating)
+    );
     if (nickname) localStorage.setItem("jays-nickname", nickname);
 
-    status.textContent = `Saved: ${rating}/10 — everyone can see this now.`;
+    status.textContent = `Saved: ${rating}/10 — everyone on this team page can see this now.`;
     status.className = "form-status ok";
-    // Live listener will refresh charts; force one fetch if needed
   } catch (err) {
     console.error(err);
     status.textContent = err.message || "Could not save. Check Firestore rules.";
@@ -458,29 +648,17 @@ async function submitRating() {
   }
 }
 
-function wireEvents() {
-  $("ratingSlider").addEventListener("input", updateSliderUI);
-  $("submitRating").addEventListener("click", submitRating);
-  document.querySelectorAll(".chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
-      chip.classList.add("active");
-      state.filter = chip.dataset.filter;
-      renderComparisons();
-    });
-  });
-}
-
 function startLiveFeed() {
   if (state.unsub) {
     state.unsub();
     state.unsub = null;
   }
-  if (!firebaseReady) {
+  if (!firebaseReady || state.view !== "team") {
     applyRatingsData([]);
     return;
   }
   state.unsub = subscribeRatings(
+    state.teamId,
     (all) => {
       setFirebaseBanner("Live · ratings syncing via Firebase", "ok");
       applyRatingsData(all);
@@ -494,9 +672,85 @@ function startLiveFeed() {
   );
 }
 
+function navigateToTeam(teamId) {
+  if (!TEAMS_BY_ID[teamId]) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("team", teamId);
+  url.hash = "";
+  history.pushState({ team: teamId }, "", url.pathname + "?" + url.searchParams.toString());
+  route();
+}
+
+function navigateToHub() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("team");
+  url.hash = "";
+  history.pushState({}, "", url.pathname + (url.search || ""));
+  route();
+}
+
+async function route() {
+  const r = parseRoute();
+  state.view = r.view;
+  destroyAllCharts();
+
+  if (r.view === "hub") {
+    if (state.unsub) {
+      state.unsub();
+      state.unsub = null;
+    }
+    state.teamId = null;
+    state.focus = null;
+    renderHub();
+    return;
+  }
+
+  try {
+    await loadTeamPage(r.teamId);
+  } catch (err) {
+    console.error(err);
+    if ($("headline")) $("headline").textContent = "Could not load the badness index.";
+  }
+}
+
+function wireEvents() {
+  if (state.eventsWired) return;
+  state.eventsWired = true;
+
+  $("ratingSlider")?.addEventListener("input", updateSliderUI);
+  $("submitRating")?.addEventListener("click", submitRating);
+
+  document.querySelectorAll("#teamView .chip[data-filter]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      document
+        .querySelectorAll("#teamView .chip[data-filter]")
+        .forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      state.filter = chip.dataset.filter;
+      renderComparisons();
+    });
+  });
+
+  document.querySelectorAll("[data-hub-filter]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      document
+        .querySelectorAll("[data-hub-filter]")
+        .forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      state.hubFilter = chip.dataset.hubFilter;
+      if (state.view === "hub") renderHub();
+    });
+  });
+
+  $("teamSelect")?.addEventListener("change", (e) => {
+    navigateToTeam(e.target.value);
+  });
+
+  window.addEventListener("popstate", () => route());
+}
+
 async function boot() {
   wireEvents();
-  updateSliderUI();
   initFirebase();
 
   if (!FIREBASE_CONFIGURED) {
@@ -510,13 +764,7 @@ async function boot() {
     setFirebaseBanner("Connecting to Firebase…", "");
   }
 
-  try {
-    await loadToday();
-    startLiveFeed();
-  } catch (err) {
-    console.error(err);
-    $("headline").textContent = "Could not load the badness index.";
-  }
+  await route();
 }
 
 boot();

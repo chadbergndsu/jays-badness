@@ -1,10 +1,15 @@
-# Blue Jays Daily Badness Index
+# MLB Daily Badness Index
 
-Daily site that compares how **bad the Toronto Blue Jays** are to **every other MLB team**, lets anyone rate the pain (1–10), and charts the **shared** community data in **Firebase**.
+Daily site for **every MLB team**: compare how bad they are vs the other 29 clubs, rate the pain (1–10), and chart **shared** community data in **Firebase**.
 
 ## Live site
 
-**https://chadbergndsu.github.io/jays-badness/**
+**Hub (all 30 teams):** https://chadbergndsu.github.io/jays-badness/
+
+**Example team page:** https://chadbergndsu.github.io/jays-badness/?team=tor  
+(Yankees: `?team=nyy`, Cubs: `?team=chc`, etc.)
+
+Each team has its own daily roast, comparisons, ratings, and charts. Ratings do **not** mix across teams.
 
 ## Firebase setup (required for shared ratings)
 
@@ -61,6 +66,7 @@ Collection: `ratings`
 
 | Field | Meaning |
 |--------|---------|
+| `team` | team id (`tor`, `nyy`, …); missing = legacy Blue Jays |
 | `day` | `YYYY-MM-DD` |
 | `rating` | 1–10 |
 | `nickname` | display name |
@@ -68,9 +74,11 @@ Collection: `ratings`
 | `voter_key` | anonymous browser id |
 | `created_at` | server timestamp |
 
-Doc id: `{day}__{voter_key}` (one vote per browser per day; updates overwrite).
+Doc id: `{team}__{day}__{voter_key}` (one vote per browser per team per day; updates overwrite).
 
-## Daily email to 3 people (free)
+After changing rules, re-publish `firestore.rules` in Firebase Console.
+
+## Daily email (Blue Jays digest)
 
 GitHub Actions emails a daily digest every day at **13:00 UTC** (~9 AM Eastern).
 

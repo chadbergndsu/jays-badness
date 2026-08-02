@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public vibes board: anyone can read/write ratings.
+    // Public vibes board: anyone can read/write ratings (scoped by MLB team).
     // Safe enough for a friends joke site; tighten later if needed.
     match /ratings/{docId} {
       allow read: if true;
@@ -15,7 +15,15 @@ service cloud.firestore {
         && request.resource.data.note is string
         && request.resource.data.note.size() <= 280
         && request.resource.data.voter_key is string
-        && request.resource.data.voter_key.size() <= 80;
+        && request.resource.data.voter_key.size() <= 80
+        && (
+          !('team' in request.resource.data)
+          || (
+            request.resource.data.team is string
+            && request.resource.data.team.size() > 0
+            && request.resource.data.team.size() <= 12
+          )
+        );
       allow delete: if false;
     }
   }

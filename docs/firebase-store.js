@@ -1,4 +1,4 @@
-/* Shared ratings via Firebase Firestore */
+/* Shared ratings via Firebase Firestore (scoped by MLB team) */
 
 let db = null;
 let firebaseReady = false;
@@ -25,22 +25,24 @@ function initFirebase() {
   }
 }
 
-function ratingDocId(day, voterKey) {
-  // Firestore doc ids cannot contain some chars; sanitize voter key
-  const safe = String(voterKey).replace(/[/\\]/g, "_").slice(0, 80);
-  return `${day}__${safe}`;
+function ratingDocId(teamId, day, voterKey) {
+  const safeTeam = String(teamId || "tor").replace(/[/\\.]/g, "_").slice(0, 12);
+  const safe = String(voterKey).replace(/[/\\.]/g, "_").slice(0, 80);
+  return `${safeTeam}__${day}__${safe}`;
 }
 
-async function upsertRating({ day, rating, nickname, note, voterKey }) {
+async function upsertRating({ teamId, day, rating, nickname, note, voterKey }) {
   if (!firebaseReady) throw new Error(firebaseError || "Firebase not ready");
   if (!day || !voterKey) throw new Error("Missing day or voter key");
+  const team = String(teamId || "tor").toLowerCase();
   const n = Number(rating);
   if (!Number.isInteger(n) || n < 1 || n > 10) {
     throw new Error("Rating must be an integer 1–10");
   }
 
-  const id = ratingDocId(day, voterKey);
+  const id = ratingDocId(team, day, voterKey);
   const row = {
+    team,
     day,
     rating: n,
     nickname: (nickname || "Anonymous").trim().slice(0, 40) || "Anonymous",
@@ -64,8 +66,11 @@ function docToRating(doc) {
   if (!created && d.created_at && typeof d.created_at.toDate === "function") {
     created = d.created_at.toDate().toISOString();
   }
+  // Legacy docs (pre multi-team) had no team field — treat as Blue Jays
+  const team = (d.team || "tor").toLowerCase();
   return {
     id: doc.id,
+    team,
     day: d.day,
     rating: d.rating,
     nickname: d.nickname || "Anonymous",
@@ -75,10 +80,16 @@ function docToRating(doc) {
   };
 }
 
-async function fetchAllRatings() {
+function filterByTeam(all, teamId) {
+  const t = String(teamId || "tor").toLowerCase();
+  return all.filter((r) => (r.team || "tor") === t);
+}
+
+async function fetchAllRatings(teamId) {
   if (!firebaseReady) throw new Error(firebaseError || "Firebase not ready");
   const snap = await db.collection("ratings").get();
-  return snap.docs.map(docToRating).filter((r) => r.day && r.rating != null);
+  const all = snap.docs.map(docToRating).filter((r) => r.day && r.rating != null);
+  return teamId ? filterByTeam(all, teamId) : all;
 }
 
 function computeDayStats(all, day) {
@@ -168,18 +179,23 @@ function computeAllTime(all) {
 }
 
 /**
- * Live listener — calls onData(allRatings) whenever anything changes.
+ * Live listener for one team's ratings.
  * Returns unsubscribe function.
  */
-function subscribeRatings(onData, onError) {
+function subscribeRatings(teamId, onData, onError) {
   if (!firebaseReady) {
     if (onError) onError(new Error(firebaseError || "Firebase not ready"));
     return () => {};
   }
+  const t = String(teamId || "tor").toLowerCase();
+  // Listen to whole collection and filter client-side so legacy Jays docs
+  // (no team field) still appear on the TOR page without a composite index.
   return db.collection("ratings").onSnapshot(
     (snap) => {
-      const all = snap.docs.map(docToRating).filter((r) => r.day && r.rating != null);
-      onData(all);
+      const all = snap.docs
+        .map(docToRating)
+        .filter((r) => r.day && r.rating != null);
+      onData(filterByTeam(all, t));
     },
     (err) => {
       console.error("Firestore listener error:", err);
