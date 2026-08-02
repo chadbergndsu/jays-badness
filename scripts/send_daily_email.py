@@ -217,8 +217,7 @@ def build_email(payload: dict, community: dict) -> tuple[str, str, str]:
 DEFAULT_RECIPIENTS = (
     "jarod.zimmer@railserve.com,"
     "Andre.obrien@railserve.com,"
-    "kyle.pedretti@railserve.com,"
-    "chad.berg@railserve.com"
+    "kyle.pedretti@railserve.com"
 )
 DEFAULT_FROM = "chadbergndsu@gmail.com"
 
