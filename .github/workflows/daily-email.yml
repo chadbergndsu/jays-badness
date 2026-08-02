@@ -24,7 +24,7 @@ jobs:
           SMTP_USER: chadbergndsu@gmail.com
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_FROM: chadbergndsu@gmail.com
-          EMAIL_TO: jarod.zimmer@railserve.com,Andre.obrien@railserve.com,kyle.pedretti@railserve.com
+          EMAIL_TO: jarod.zimmer@railserve.com,Andre.obrien@railserve.com,kyle.pedretti@railserve.com,chad.berg@railserve.com
           SITE_URL: https://chadbergndsu.github.io/jays-badness/
           FIRESTORE_PROJECT: blue-jays-a16f1
         run: |
