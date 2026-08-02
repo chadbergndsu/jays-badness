@@ -249,8 +249,17 @@ def send_email(subject: str, text_body: str, html_body: str) -> None:
     from_addr = from_addr.strip() or user
     to_raw = os.environ.get("EMAIL_TO", DEFAULT_RECIPIENTS)
     recipients = [e.strip() for e in to_raw.replace(";", ",").split(",") if e.strip()]
+    # Opt-outs (always excluded, even if still listed in workflow EMAIL_TO)
+    excluded = {
+        e.strip().lower()
+        for e in os.environ.get(
+            "EMAIL_EXCLUDE", "chad.berg@railserve.com"
+        ).replace(";", ",").split(",")
+        if e.strip()
+    }
+    recipients = [e for e in recipients if e.lower() not in excluded]
     if not recipients:
-        raise SystemExit("EMAIL_TO is empty")
+        raise SystemExit("EMAIL_TO is empty after applying exclusions")
     if not password and os.environ.get("DRY_RUN", "").lower() not in (
         "1",
         "true",
