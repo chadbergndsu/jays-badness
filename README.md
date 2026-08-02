@@ -79,6 +79,7 @@ GitHub Actions emails a daily digest every day at **13:00 UTC** (~9 AM Eastern).
 - jarod.zimmer@railserve.com  
 - Andre.obrien@railserve.com  
 - kyle.pedretti@railserve.com  
+- chad.berg@railserve.com  
 
 ### 1. Create a Gmail App Password (one-time)
 
